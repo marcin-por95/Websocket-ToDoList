@@ -28,6 +28,13 @@ io.on('connection', (socket) => {
             io.emit('removeTask', taskId); // Emit the 'removeTask' event to all clients
         }
     });
+    socket.on('editTask', (editedTask) => {
+        const existingTaskIndex = tasks.findIndex(task => task.id === editedTask.id);
+        if (existingTaskIndex !== -1) {
+            tasks[existingTaskIndex] = editedTask;
+            io.emit('tasks-updated', tasks);
+        }
+    });
 });
 
 app.use((req, res) => {

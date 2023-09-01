@@ -6,6 +6,30 @@ const App = () => {
     const [socket, setSocket] = useState(null); // State for the socket connection
     const [tasks, setTasks] = useState([]);
     const [taskName, setTaskName] = useState('');
+    const [editedTaskId, setEditedTaskId] = useState(null);
+    const [editedTaskName, setEditedTaskName] = useState('');
+
+
+    const startEditingTask = (taskId, taskName) => {
+        setEditedTaskId(taskId);
+        setEditedTaskName(taskName);
+    };
+
+    const cancelEditing = () => {
+        setEditedTaskId(null);
+        setEditedTaskName('');
+    };
+
+    const saveEditedTask = () => {
+        if (!editedTaskName.trim()) {
+            return;
+        }
+
+        const editedTask = { id: editedTaskId, name: editedTaskName };
+        socket.emit('editTask', editedTask);
+        setEditedTaskId(null);
+        setEditedTaskName('');
+    };
 
     const removeTask = useCallback(
         (taskId, isLocal = true) => {
@@ -20,7 +44,7 @@ const App = () => {
         [socket]
     );
 
-    /* SOCKET CONNECTIO */
+
     useEffect(() => {
         // Initialize the socket connection once when the component mounts
         const newSocket = io('http://localhost:8000'); // Change this to your server address
@@ -32,7 +56,6 @@ const App = () => {
         };
     }, []);
 
-    /* LISTEN FOR TASKS-UPADTED EVENT*/
     useEffect(() => {
         if (socket) {
             // Listen for 'tasks-updated' event from the server and update the tasks state
@@ -68,11 +91,19 @@ const App = () => {
     const submitForm = (event) => {
         event.preventDefault();
 
+        // Remove leading and trailing whitespace from taskName
+        const trimmedTaskName = taskName.trim();
+
+        // Check if the taskName is empty
+        if (!trimmedTaskName) {
+            return; // Prevent adding empty task
+        }
+
         // Generate ID via UUID
         const taskId = uuidv4();
 
         // Create a new task object and add it to the tasks array
-        const newTask = { id: taskId, name: taskName };
+        const newTask = { id: taskId, name: trimmedTaskName };
         setTasks(tasks => [...tasks, newTask]);
 
         // Emit the 'addTask' event to the server along with the new task data
@@ -96,7 +127,37 @@ const App = () => {
                 <ul className="tasks-section__list" id="tasks-list">
                     {tasks.map(task => (
                         <li className="task" key={task.id}>
-                            {task.name} <button className="btn btn--red" onClick={() => removeTask(task.id)}>Remove</button>
+                            {editedTaskId === task.id ? (
+                                <input
+                                    className="edit-input"
+                                    type="text"
+                                    value={editedTaskName}
+                                    onChange={(event) => setEditedTaskName(event.target.value)}
+                                />
+                            ) : (
+                                task.name
+                            )}
+                            <div className="button-group">
+                                {editedTaskId === task.id ? (
+                                    <>
+                                        <button className="btn btn--green" onClick={saveEditedTask}>
+                                            Save
+                                        </button>
+                                        <button className="btn btn--gray" onClick={cancelEditing}>
+                                            Cancel
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button className="btn btn--blue" onClick={() => startEditingTask(task.id, task.name)}>
+                                            Edit
+                                        </button>
+                                        <button className="btn btn--red" onClick={() => removeTask(task.id)}>
+                                            Remove
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </li>
                     ))}
                 </ul>
